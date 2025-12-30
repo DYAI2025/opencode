@@ -1,0 +1,227 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // ============================================================================
+  // OpenCode Konfiguration für macOS - Alle AI-Modelle
+  // ============================================================================
+  //
+  // Installation:
+  // 1. Kopiere diese Datei nach ~/.config/opencode/opencode.jsonc
+  // 2. Setze deine API-Keys in ~/.zshrc oder ~/.bashrc
+  // 3. Passe die Modell-Auswahl nach deinen Bedürfnissen an
+  //
+  // ============================================================================
+
+  // Standard-Modell (wird verwendet wenn kein --model Parameter angegeben wird)
+  "model": "anthropic/claude-sonnet-4-5-20250929",
+
+  // Kleines Modell für einfache Aufgaben (z.B. Datei-Titel generieren)
+  "small_model": "anthropic/claude-haiku-4-5",
+
+  // ============================================================================
+  // Provider-Konfiguration
+  // ============================================================================
+
+  "provider": {
+    // -------------------------------------------------------------------------
+    // Anthropic Claude - Beste Code-Qualität
+    // -------------------------------------------------------------------------
+    "anthropic": {
+      "name": "Anthropic",
+      "env": ["ANTHROPIC_API_KEY"],
+      "options": {
+        // Custom headers werden automatisch hinzugefügt
+      },
+      "models": {
+        // Modelle werden automatisch von models.dev geladen
+        // Du kannst hier Overrides hinzufügen falls nötig
+      }
+    },
+
+    // -------------------------------------------------------------------------
+    // Google Gemini - Sehr günstig, großes Context-Window
+    // -------------------------------------------------------------------------
+    "google": {
+      "name": "Google Gemini",
+      "env": ["GOOGLE_API_KEY"],
+      "options": {}
+    },
+
+    // -------------------------------------------------------------------------
+    // xAI Grok - OpenAI-kompatible API
+    // -------------------------------------------------------------------------
+    "xai": {
+      "name": "xAI",
+      "env": ["XAI_API_KEY"],
+      "api": "https://api.x.ai/v1",
+      "npm": "@ai-sdk/openai-compatible",
+      "models": {
+        "grok-beta": {
+          "id": "grok-beta",
+          "name": "Grok Beta",
+          "status": "active",
+          "cost": {
+            "input": 5.0,
+            "output": 15.0,
+            "cache_read": 0.5,
+            "cache_write": 6.25
+          },
+          "limit": {
+            "context": 131072,
+            "output": 4096
+          },
+          "temperature": true,
+          "reasoning": false,
+          "attachment": false,
+          "tool_call": true,
+          "modalities": {
+            "input": ["text"],
+            "output": ["text"]
+          },
+          "options": {},
+          "headers": {}
+        },
+        "grok-vision-beta": {
+          "id": "grok-vision-beta",
+          "name": "Grok Vision Beta",
+          "status": "active",
+          "cost": {
+            "input": 5.0,
+            "output": 15.0,
+            "cache_read": 0.5,
+            "cache_write": 6.25
+          },
+          "limit": {
+            "context": 8192,
+            "output": 4096
+          },
+          "temperature": true,
+          "reasoning": false,
+          "attachment": true,
+          "tool_call": true,
+          "modalities": {
+            "input": ["text", "image"],
+            "output": ["text"]
+          },
+          "options": {},
+          "headers": {}
+        }
+      }
+    },
+
+    // -------------------------------------------------------------------------
+    // OpenRouter - Zugang zu Qwen und vielen anderen Modellen
+    // -------------------------------------------------------------------------
+    "openrouter": {
+      "name": "OpenRouter",
+      "env": ["OPENROUTER_API_KEY"],
+      "options": {
+        // OpenRouter erfordert diese Headers
+        "headers": {
+          "HTTP-Referer": "https://opencode.ai/",
+          "X-Title": "opencode"
+        }
+      },
+      "models": {
+        // Qwen Modelle
+        "qwen/qwen-2.5-72b-instruct": {
+          "id": "qwen/qwen-2.5-72b-instruct",
+          "name": "Qwen 2.5 72B Instruct"
+        },
+        "qwen/qwen-2-72b-instruct": {
+          "id": "qwen/qwen-2-72b-instruct",
+          "name": "Qwen 2 72B Instruct"
+        },
+        "qwen/qwq-32b-preview": {
+          "id": "qwen/qwq-32b-preview",
+          "name": "QwQ 32B Preview"
+        }
+      }
+    },
+
+    // -------------------------------------------------------------------------
+    // GitHub Copilot - Codex und GPT Modelle
+    // -------------------------------------------------------------------------
+    // Hinweis: Benötigt Plugin "opencode-openai-codex-auth"
+    // Installation: npm install -g opencode-openai-codex-auth
+    // Auth: opencode auth login github-copilot
+    // -------------------------------------------------------------------------
+    "github-copilot": {
+      "name": "GitHub Copilot",
+      "env": ["GITHUB_TOKEN"],
+      "options": {}
+    },
+
+    // -------------------------------------------------------------------------
+    // OpenAI - Direkter Zugang (falls nicht via Copilot)
+    // -------------------------------------------------------------------------
+    "openai": {
+      "name": "OpenAI",
+      "env": ["OPENAI_API_KEY"],
+      "options": {}
+    },
+
+    // -------------------------------------------------------------------------
+    // OpenCode Zen - Offizieller OpenCode Provider (optional)
+    // -------------------------------------------------------------------------
+    "opencode": {
+      "name": "OpenCode Zen",
+      "env": ["OPENCODE_API_KEY"],
+      "options": {
+        // Für lokale Development:
+        // "baseURL": "http://localhost:8080"
+      }
+    }
+  },
+
+  // ============================================================================
+  // Plugins
+  // ============================================================================
+  // Aktiviere Plugins für zusätzliche Funktionalität
+  "plugin": [
+    // Für GitHub Copilot / Codex Support:
+    // "opencode-openai-codex-auth"
+  ],
+
+  // ============================================================================
+  // Provider Filter (optional)
+  // ============================================================================
+  // Deaktiviere bestimmte Provider:
+  // "disabled_providers": ["openai"],
+
+  // Oder aktiviere nur bestimmte Provider:
+  // "enabled_providers": ["anthropic", "google", "xai"],
+
+  // ============================================================================
+  // Model Context Protocol (MCP) - Optional
+  // ============================================================================
+  // Erweitere OpenCode mit MCP-Servern
+  "mcp": {
+    // Beispiel: Exa Search Integration
+    "exa": {
+      "type": "remote",
+      "url": "https://mcp.exa.ai/mcp"
+    }
+    // Weitere MCP-Server können hier hinzugefügt werden
+  },
+
+  // ============================================================================
+  // Projekt-spezifische Anweisungen (optional)
+  // ============================================================================
+  // Lade zusätzliche Anweisungen aus Dateien:
+  // "instructions": ["STYLE_GUIDE.md", "ARCHITECTURE.md"],
+
+  // ============================================================================
+  // Agent-Konfiguration (optional)
+  // ============================================================================
+  "agent": {
+    // Konfiguration für verschiedene Agents
+  },
+
+  // ============================================================================
+  // Mode-Konfiguration (optional)
+  // ============================================================================
+  "mode": {
+    // Konfiguration für verschiedene Modi
+  }
+}
