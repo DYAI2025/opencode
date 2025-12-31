@@ -24,12 +24,13 @@ export namespace Plugin {
       project: Instance.project,
       worktree: Instance.worktree,
       directory: Instance.directory,
+      serverUrl: Server.url(),
       $: Bun.$,
     }
     const plugins = [...(config.plugin ?? [])]
     if (!Flag.OPENCODE_DISABLE_DEFAULT_PLUGINS) {
-      plugins.push("opencode-copilot-auth@0.0.8")
-      plugins.push("opencode-anthropic-auth@0.0.4")
+      plugins.push("opencode-copilot-auth@0.0.9")
+      plugins.push("opencode-anthropic-auth@0.0.5")
     }
     for (let plugin of plugins) {
       log.info("loading plugin", { path: plugin })

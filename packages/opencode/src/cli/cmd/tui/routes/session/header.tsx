@@ -4,7 +4,7 @@ import { useSync } from "@tui/context/sync"
 import { pipe, sumBy } from "remeda"
 import { useTheme } from "@tui/context/theme"
 import { SplitBorder, EmptyBorder } from "@tui/component/border"
-import type { AssistantMessage, Session } from "@opencode-ai/sdk"
+import type { AssistantMessage, Session } from "@opencode-ai/sdk/v2"
 import { useDirectory } from "../../context/directory"
 import { useKeybind } from "../../context/keybind"
 
@@ -80,6 +80,9 @@ export function Header() {
             <box flexDirection="row" gap={2}>
               <text fg={theme.text}>
                 <b>Subagent session</b>
+              </text>
+              <text fg={theme.text}>
+                Parent <span style={{ fg: theme.textMuted }}>{keybind.print("session_parent")}</span>
               </text>
               <text fg={theme.text}>
                 Prev <span style={{ fg: theme.textMuted }}>{keybind.print("session_child_cycle_reverse")}</span>
