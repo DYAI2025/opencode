@@ -11,7 +11,7 @@ import { useSync } from "@/context/sync"
 import { FileIcon } from "@opencode-ai/ui/file-icon"
 import { Button } from "@opencode-ai/ui/button"
 import { Icon } from "@opencode-ai/ui/icon"
-import { Tooltip } from "@opencode-ai/ui/tooltip"
+import { Tooltip, TooltipKeybind } from "@opencode-ai/ui/tooltip"
 import { IconButton } from "@opencode-ai/ui/icon-button"
 import { Select } from "@opencode-ai/ui/select"
 import { getDirectory, getFilename } from "@opencode-ai/util/path"
@@ -23,6 +23,7 @@ import { useCommand } from "@/context/command"
 import { persisted } from "@/utils/persist"
 import { Identifier } from "@/utils/id"
 import { SessionContextUsage } from "@/components/session-context-usage"
+import { usePermission } from "@/context/permission"
 
 const ACCEPTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"]
 const ACCEPTED_FILE_TYPES = [...ACCEPTED_IMAGE_TYPES, "application/pdf"]
@@ -80,6 +81,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   const dialog = useDialog()
   const providers = useProviders()
   const command = useCommand()
+  const permission = usePermission()
   let editorRef!: HTMLDivElement
   let fileInputRef!: HTMLInputElement
   let scrollRef!: HTMLDivElement
@@ -1126,6 +1128,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       providerID: currentModel.provider.id,
     }
     const agent = currentAgent.name
+    const variant = local.model.variant.current()
 
     if (isShellMode) {
       sdk.client.session
@@ -1153,6 +1156,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
             arguments: args.join(" "),
             agent,
             model: `${model.providerID}/${model.modelID}`,
+            variant,
           })
           .catch((e) => {
             console.error("Failed to send command", e)
@@ -1189,6 +1193,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
         model,
         messageID,
         parts: requestParts,
+        variant,
       })
       .catch((e) => {
         console.error("Failed to send prompt", e)
@@ -1268,6 +1273,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       <form
         onSubmit={handleSubmit}
         classList={{
+          "group/prompt-input": true,
           "bg-surface-raised-stronger-non-alpha shadow-xs-border relative": true,
           "rounded-md overflow-clip focus-within:shadow-xs-border": true,
           "border-icon-info-active border-dashed": store.dragging,
@@ -1340,12 +1346,9 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                 : `Ask anything... "${PLACEHOLDERS[store.placeholder]}"`}
             </div>
           </Show>
-          <div class="absolute top-4.5 right-4">
-            <SessionContextUsage />
-          </div>
         </div>
         <div class="relative p-3 flex items-center justify-between">
-          <div class="flex items-center justify-start gap-1">
+          <div class="flex items-center justify-start gap-0.5">
             <Switch>
               <Match when={store.mode === "shell"}>
                 <div class="flex items-center gap-2 px-2 h-6">
@@ -1355,15 +1358,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                 </div>
               </Match>
               <Match when={store.mode === "normal"}>
-                <Tooltip
-                  placement="top"
-                  value={
-                    <div class="flex items-center gap-2">
-                      <span>Cycle agent</span>
-                      <span class="text-icon-base text-12-medium">{command.keybind("agent.cycle")}</span>
-                    </div>
-                  }
-                >
+                <TooltipKeybind placement="top" title="Cycle agent" keybind={command.keybind("agent.cycle")}>
                   <Select
                     options={local.agent.list().map((agent) => agent.name)}
                     current={local.agent.current()?.name ?? ""}
@@ -1371,13 +1366,18 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                     class="capitalize"
                     variant="ghost"
                   />
-                </Tooltip>
+                </TooltipKeybind>
                 <Tooltip
                   placement="top"
                   value={
-                    <div class="flex items-center gap-2">
-                      <span>Choose model</span>
-                      <span class="text-icon-base text-12-medium">{command.keybind("model.choose")}</span>
+                    <div class="flex flex-col gap-1">
+                      <div class="flex items-center gap-2">
+                        <span>Choose model</span>
+                        <span class="text-icon-base text-12-medium">{command.keybind("model.choose")}</span>
+                      </div>
+                      <Show when={local.model.current()?.provider.name}>
+                        <span class="text-text-weak">{local.model.current()?.provider.name}</span>
+                      </Show>
                     </div>
                   }
                 >
@@ -1391,16 +1391,51 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                     }
                   >
                     {local.model.current()?.name ?? "Select model"}
-                    <span class="hidden md:block ml-0.5 text-text-weak text-12-regular">
-                      {local.model.current()?.provider.name}
-                    </span>
                     <Icon name="chevron-down" size="small" />
                   </Button>
                 </Tooltip>
+                <Show when={local.model.variant.list().length > 0}>
+                  <TooltipKeybind
+                    placement="top"
+                    title="Thinking effort"
+                    keybind={command.keybind("model.variant.cycle")}
+                  >
+                    <Button
+                      variant="ghost"
+                      class="text-text-base _hidden group-hover/prompt-input:inline-block"
+                      onClick={() => local.model.variant.cycle()}
+                    >
+                      <span class="capitalize text-12-regular">{local.model.variant.current() ?? "Default"}</span>
+                    </Button>
+                  </TooltipKeybind>
+                </Show>
+                <Show when={permission.permissionsEnabled() && params.id}>
+                  <TooltipKeybind
+                    placement="top"
+                    title="Auto-accept edits"
+                    keybind={command.keybind("permissions.autoaccept")}
+                  >
+                    <Button
+                      variant="ghost"
+                      onClick={() => permission.toggleAutoAccept(params.id!, sdk.directory)}
+                      classList={{
+                        "_hidden group-hover/prompt-input:flex size-6 items-center justify-center": true,
+                        "text-text-base": !permission.isAutoAccepting(params.id!),
+                        "bg-surface-success-base": permission.isAutoAccepting(params.id!),
+                      }}
+                    >
+                      <Icon
+                        name="chevron-double-right"
+                        size="small"
+                        classList={{ "text-icon-success-base": permission.isAutoAccepting(params.id!) }}
+                      />
+                    </Button>
+                  </TooltipKeybind>
+                </Show>
               </Match>
             </Switch>
           </div>
-          <div class="flex items-center gap-1 absolute right-2 bottom-2">
+          <div class="flex items-center gap-3 absolute right-2 bottom-2">
             <input
               ref={fileInputRef}
               type="file"
@@ -1412,17 +1447,16 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                 e.currentTarget.value = ""
               }}
             />
-            <Show when={store.mode === "normal"}>
-              <Tooltip placement="top" value="Attach image">
-                <IconButton
-                  type="button"
-                  icon="photo"
-                  variant="ghost"
-                  class="h-10 w-8"
-                  onClick={() => fileInputRef.click()}
-                />
-              </Tooltip>
-            </Show>
+            <div class="flex items-center gap-2">
+              <SessionContextUsage />
+              <Show when={store.mode === "normal"}>
+                <Tooltip placement="top" value="Attach image">
+                  <Button type="button" variant="ghost" class="size-6" onClick={() => fileInputRef.click()}>
+                    <Icon name="photo" class="size-4.5" />
+                  </Button>
+                </Tooltip>
+              </Show>
+            </div>
             <Tooltip
               placement="top"
               inactive={!prompt.dirty() && !working()}
@@ -1448,7 +1482,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                 disabled={!prompt.dirty() && store.imageAttachments.length === 0 && !working()}
                 icon={working() ? "stop" : "arrow-up"}
                 variant="primary"
-                class="h-10 w-8"
+                class="h-6 w-4.5"
               />
             </Tooltip>
           </div>
