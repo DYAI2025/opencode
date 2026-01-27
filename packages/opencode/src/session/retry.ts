@@ -1,5 +1,6 @@
 import type { NamedError } from "@opencode-ai/util/error"
 import { MessageV2 } from "./message-v2"
+import { iife } from "@/util/iife"
 
 export namespace SessionRetry {
   export const RETRY_INITIAL_DELAY = 2000
@@ -9,15 +10,18 @@ export namespace SessionRetry {
 
   export async function sleep(ms: number, signal: AbortSignal): Promise<void> {
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(resolve, Math.min(ms, RETRY_MAX_DELAY))
-      signal.addEventListener(
-        "abort",
+      const abortHandler = () => {
+        clearTimeout(timeout)
+        reject(new DOMException("Aborted", "AbortError"))
+      }
+      const timeout = setTimeout(
         () => {
-          clearTimeout(timeout)
-          reject(new DOMException("Aborted", "AbortError"))
+          signal.removeEventListener("abort", abortHandler)
+          resolve()
         },
-        { once: true },
+        Math.min(ms, RETRY_MAX_DELAY),
       )
+      signal.addEventListener("abort", abortHandler, { once: true })
     })
   }
 
@@ -60,28 +64,36 @@ export namespace SessionRetry {
       return error.data.message.includes("Overloaded") ? "Provider is overloaded" : error.data.message
     }
 
-    if (typeof error.data?.message === "string") {
+    const json = iife(() => {
       try {
-        const json = JSON.parse(error.data.message)
-        if (json.type === "error" && json.error?.type === "too_many_requests") {
-          return "Too Many Requests"
+        if (typeof error.data?.message === "string") {
+          const parsed = JSON.parse(error.data.message)
+          return parsed
         }
-        if (json.code.includes("exhausted") || json.code.includes("unavailable")) {
-          return "Provider is overloaded"
-        }
-        if (json.type === "error" && json.error?.code?.includes("rate_limit")) {
-          return "Rate Limited"
-        }
-        if (
-          json.error?.message?.includes("no_kv_space") ||
-          (json.type === "error" && json.error?.type === "server_error") ||
-          !!json.error
-        ) {
-          return "Provider Server Error"
-        }
-      } catch {}
-    }
 
-    return undefined
+        return JSON.parse(error.data.message)
+      } catch {
+        return undefined
+      }
+    })
+    if (!json || typeof json !== "object") return undefined
+    const code = typeof json.code === "string" ? json.code : ""
+
+    if (json.type === "error" && json.error?.type === "too_many_requests") {
+      return "Too Many Requests"
+    }
+    if (code.includes("exhausted") || code.includes("unavailable")) {
+      return "Provider is overloaded"
+    }
+    if (json.type === "error" && json.error?.code?.includes("rate_limit")) {
+      return "Rate Limited"
+    }
+    if (
+      json.error?.message?.includes("no_kv_space") ||
+      (json.type === "error" && json.error?.type === "server_error") ||
+      !!json.error
+    ) {
+      return "Provider Server Error"
+    }
   }
 }

@@ -3,7 +3,10 @@ import { AsyncStorage, SyncStorage } from "@solid-primitives/storage"
 
 export type Platform = {
   /** Platform discriminator */
-  platform: "web" | "tauri"
+  platform: "web" | "desktop"
+
+  /** Desktop OS (Tauri only) */
+  os?: "macos" | "windows" | "linux"
 
   /** App version */
   version?: string
@@ -37,6 +40,15 @@ export type Platform = {
 
   /** Fetch override */
   fetch?: typeof fetch
+
+  /** Get the configured default server URL (platform-specific) */
+  getDefaultServerUrl?(): Promise<string | null> | string | null
+
+  /** Set the default server URL to use on app startup (platform-specific) */
+  setDefaultServerUrl?(url: string | null): Promise<void> | void
+
+  /** Parse markdown to HTML using native parser (desktop only, returns unprocessed code blocks) */
+  parseMarkdown?(markdown: string): Promise<string>
 }
 
 export const { use: usePlatform, provider: PlatformProvider } = createSimpleContext({
