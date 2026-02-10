@@ -425,6 +425,7 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
             >
               <IconButton
                 icon={copied() ? "check" : "copy"}
+                size="small"
                 variant="secondary"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={(event) => {
@@ -477,20 +478,7 @@ function HighlightedText(props: { text: string; references: FilePart[]; agents: 
     return result
   })
 
-  return (
-    <For each={segments()}>
-      {(segment) => (
-        <span
-          classList={{
-            "text-syntax-property": segment.type === "file",
-            "text-syntax-type": segment.type === "agent",
-          }}
-        >
-          {segment.text}
-        </span>
-      )}
-    </For>
-  )
+  return <For each={segments()}>{(segment) => <span data-highlight={segment.type}>{segment.text}</span>}</For>
 }
 
 export function Part(props: MessagePartProps) {
@@ -707,6 +695,7 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
             >
               <IconButton
                 icon={copied() ? "check" : "copy"}
+                size="small"
                 variant="secondary"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={handleCopy}
@@ -737,20 +726,39 @@ PART_MAPPING["reasoning"] = function ReasoningPartDisplay(props) {
 ToolRegistry.register({
   name: "read",
   render(props) {
+    const data = useData()
     const i18n = useI18n()
     const args: string[] = []
     if (props.input.offset) args.push("offset=" + props.input.offset)
     if (props.input.limit) args.push("limit=" + props.input.limit)
+    const loaded = createMemo(() => {
+      if (props.status !== "completed") return []
+      const value = props.metadata.loaded
+      if (!value || !Array.isArray(value)) return []
+      return value.filter((p): p is string => typeof p === "string")
+    })
     return (
-      <BasicTool
-        {...props}
-        icon="glasses"
-        trigger={{
-          title: i18n.t("ui.tool.read"),
-          subtitle: props.input.filePath ? getFilename(props.input.filePath) : "",
-          args,
-        }}
-      />
+      <>
+        <BasicTool
+          {...props}
+          icon="glasses"
+          trigger={{
+            title: i18n.t("ui.tool.read"),
+            subtitle: props.input.filePath ? getFilename(props.input.filePath) : "",
+            args,
+          }}
+        />
+        <For each={loaded()}>
+          {(filepath) => (
+            <div data-component="tool-loaded-file">
+              <Icon name="enter" size="small" />
+              <span>
+                {i18n.t("ui.tool.loaded")} {relativizeProjectPaths(filepath, data.directory)}
+              </span>
+            </div>
+          )}
+        </For>
+      </>
     )
   },
 })
@@ -868,15 +876,17 @@ ToolRegistry.register({
   render(props) {
     const data = useData()
     const i18n = useI18n()
-    const summary = () =>
-      (props.metadata.summary ?? []) as { id: string; tool: string; state: { status: string; title?: string } }[]
+    const childSessionId = () => props.metadata.sessionId as string | undefined
+    const childToolParts = createMemo(() => {
+      const sessionId = childSessionId()
+      if (!sessionId) return []
+      return getSessionToolParts(data.store, sessionId)
+    })
 
     const autoScroll = createAutoScroll({
       working: () => true,
       overflowAnchor: "auto",
     })
-
-    const childSessionId = () => props.metadata.sessionId as string | undefined
 
     const childPermission = createMemo(() => {
       const sessionId = childSessionId()
@@ -998,15 +1008,21 @@ ToolRegistry.register({
                 data-scrollable
               >
                 <div ref={autoScroll.contentRef} data-component="task-tools">
-                  <For each={summary()}>
+                  <For each={childToolParts()}>
                     {(item) => {
-                      const info = getToolInfo(item.tool)
+                      const info = createMemo(() => getToolInfo(item.tool, item.state.input))
+                      const subtitle = createMemo(() => {
+                        if (info().subtitle) return info().subtitle
+                        if (item.state.status === "completed" || item.state.status === "running") {
+                          return item.state.title
+                        }
+                      })
                       return (
                         <div data-slot="task-tool-item">
-                          <Icon name={info.icon} size="small" />
-                          <span data-slot="task-tool-title">{info.title}</span>
-                          <Show when={item.state.title}>
-                            <span data-slot="task-tool-subtitle">{item.state.title}</span>
+                          <Icon name={info().icon} size="small" />
+                          <span data-slot="task-tool-title">{info().title}</span>
+                          <Show when={subtitle()}>
+                            <span data-slot="task-tool-subtitle">{subtitle()}</span>
                           </Show>
                         </div>
                       )
